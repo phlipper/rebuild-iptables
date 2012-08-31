@@ -23,33 +23,20 @@ TEMPLATE_PATH = "/etc/iptables.d"
 # Installation
 ##############################################################################
 
-# Return the prefix
-def prefix
-  File.read(File.join(TEMPLATE_PATH, "prefix")) rescue "*filter"
-end
-
-# Return the suffix
-def suffix
-  File.read(File.join(TEMPLATE_PATH, "suffix")) rescue "COMMIT"
-end
-
-def snat
-  File.read("/etc/iptables.snat") rescue ""
-end
-
 # Read in a file, processing includes as required.
-def read_iptables(file)
-  data = []
+def read_iptables(file, table = :filter)
   file = File.join(TEMPLATE_PATH, file) unless File.dirname(file) =~ /iptables\.d/
   rule = File.readlines(file).map{ |line| line.chomp }
   rule.each do |line|
     if line =~ /^\s*include\s+(\S+)$/
-      data << read_iptables($1)
-    else
-      data << line
+      read_iptables($1, table)
+    elsif line =~ /^\s*\*([a-z]*)\s*$/
+      table = $1.to_sym
+    elsif line !~ /^\s*COMMIT\s*$/
+      @data[table] = [] unless @data.has_key? table
+      @data[table].push line
     end
   end
-  data.join("\n")
 end
 
 # Write a file carefully.
@@ -75,22 +62,29 @@ end
 # Main routine
 ##############################################################################
 
-data = []
+@data = {}
+
 templates = Dir["#{TEMPLATE_PATH}/*"].sort.delete_if do |template|
-  %w[prefix suffix].include?(File.basename(template))
+  %w[prefix suffix postfix].include?(File.basename(template))
 end
 
-data << prefix
-templates.each { |template| data << read_iptables(template) }
-data << suffix
-data << snat
+templates.unshift 'prefix' if File.exists? "#{TEMPLATE_PATH}/prefix"
+templates.push 'suffix' if File.exists? "#{TEMPLATE_PATH}/suffix"
+templates.push 'postfix' if File.exists? "#{TEMPLATE_PATH}/postfix"
 
-data = data.join("\n")
+templates.each { |template| read_iptables(template) }
+
+iptables_rules = ""
+@data.each do |table, rules|
+  iptables_rules << "*#{table.to_s}\n"
+  iptables_rules << rules.join("\n")
+  iptables_rules << "\nCOMMIT\n"
+end
 
 if File.exists?("/etc/debian_version")
-  install_debian(data)
+  install_debian(iptables_rules)
 elsif File.exists?("/etc/redhat-release")
-  install_redhat(data)
+  install_redhat(iptables_rules)
 else
   raise "#{$0}: cannot figure out whether this is Red Hat or Debian\n";
 end
