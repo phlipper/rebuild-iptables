@@ -30,11 +30,16 @@ def read_iptables(file, table = :filter)
   rule.each do |line|
     if line =~ /^\s*include\s+(\S+)$/
       read_iptables($1, table)
-    elsif line =~ /^\s*\*([a-z]*)\s*$/
+    elsif line =~ /^\s*\*([a-z]+)\s*$/
       table = $1.to_sym
+    elsif line =~ /^\s*:([A-Z]+)(?:\s+([A-Z]+(?:\s*\[.*?\])))?$/
+      @data[table][chains][$1] = $2 || '-'
     elsif line !~ /^\s*COMMIT\s*$/
-      @data[table] = [] unless @data.has_key? table
-      @data[table].push line
+      #detect new chains
+      if chain = line.match(/\-[ADRILFZN]\s+([-a-zA-Z0-9_]+)\s/)
+        @data[table][:chains][chain[1]] ||= '-'
+      end
+      @data[table][:rules].push line
     end
   end
 end
@@ -62,7 +67,34 @@ end
 # Main routine
 ##############################################################################
 
-@data = {}
+@data = {
+    :filter => {
+        :chains => {
+            'INPUT'   => 'ACCEPT [0,0]',
+            'FORWARD' => 'ACCEPT [0,0]',
+            'OUTPUT'  => 'ACCEPT [0,0]'
+        },
+        :rules => []
+    },
+    :mangle => {
+        :chains => {
+            'PREROUTING'  => 'ACCEPT [0,0]',
+            'INPUT'       => 'ACCEPT [0,0]',
+            'FORWARD'     => 'ACCEPT [0,0]',
+            'OUTPUT'      => 'ACCEPT [0,0]',
+            'POSTROUTING' => 'ACCEPT [0,0]'
+        },
+        :rules => []
+    },
+    :nat => {
+        :chains => {
+            'PREROUTING'  => 'ACCEPT [0,0]',
+            'POSTROUTING' => 'ACCEPT [0,0]',
+            'OUTPUT'      => 'ACCEPT [0,0]'
+        },
+        :rules => [],
+    }
+}
 
 templates = Dir["#{TEMPLATE_PATH}/*"].sort.delete_if do |template|
   %w[prefix suffix postfix].include?(File.basename(template))
@@ -75,10 +107,15 @@ templates.push 'postfix' if File.exists? "#{TEMPLATE_PATH}/postfix"
 templates.each { |template| read_iptables(template) }
 
 iptables_rules = ""
-@data.each do |table, rules|
-  iptables_rules << "*#{table.to_s}\n"
-  iptables_rules << rules.join("\n")
-  iptables_rules << "\nCOMMIT\n"
+@data.each do |table, table_data|
+  if table_data[:rules].any?
+    iptables_rules << "*#{table.to_s}\n"
+    table_data[:chains].each do |chain, rule|
+      iptables_rules << ":#{chain} #{rule}\n"
+    end
+    iptables_rules << table_data[:rules].join("\n")
+    iptables_rules << "\nCOMMIT\n"
+  end
 end
 
 if File.exists?("/etc/debian_version")
