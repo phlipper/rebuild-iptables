@@ -23,33 +23,25 @@ TEMPLATE_PATH = "/etc/iptables.d"
 # Installation
 ##############################################################################
 
-# Return the prefix
-def prefix
-  File.read(File.join(TEMPLATE_PATH, "prefix")) rescue "*filter"
-end
-
-# Return the suffix
-def suffix
-  File.read(File.join(TEMPLATE_PATH, "suffix")) rescue "COMMIT"
-end
-
-def snat
-  File.read("/etc/iptables.snat") rescue ""
-end
-
 # Read in a file, processing includes as required.
-def read_iptables(file)
-  data = []
+def read_iptables(file, table = :filter)
   file = File.join(TEMPLATE_PATH, file) unless File.dirname(file) =~ /iptables\.d/
   rule = File.readlines(file).map{ |line| line.chomp }
   rule.each do |line|
     if line =~ /^\s*include\s+(\S+)$/
-      data << read_iptables($1)
-    else
-      data << line
+      read_iptables($1, table)
+    elsif line =~ /^\s*\*([a-z]+)\s*$/
+      table = $1.to_sym
+    elsif line =~ /^\s*:([A-Z]+)(?:\s+([A-Z]+(?:\s*\[.*?\])))?$/
+      @data[table][chains][$1] = $2 || '-'
+    elsif line !~ /^\s*COMMIT\s*$/
+      #detect new chains
+      if chain = line.match(/\-[ADRILFZN]\s+([-a-zA-Z0-9_]+)\s/)
+        @data[table][:chains][chain[1]] ||= '-'
+      end
+      @data[table][:rules].push line
     end
   end
-  data.join("\n")
 end
 
 # Write a file carefully.
@@ -75,22 +67,61 @@ end
 # Main routine
 ##############################################################################
 
-data = []
+@data = {
+    :filter => {
+        :chains => {
+            'INPUT'   => 'ACCEPT [0,0]',
+            'FORWARD' => 'ACCEPT [0,0]',
+            'OUTPUT'  => 'ACCEPT [0,0]'
+        },
+        :rules => []
+    },
+    :mangle => {
+        :chains => {
+            'PREROUTING'  => 'ACCEPT [0,0]',
+            'INPUT'       => 'ACCEPT [0,0]',
+            'FORWARD'     => 'ACCEPT [0,0]',
+            'OUTPUT'      => 'ACCEPT [0,0]',
+            'POSTROUTING' => 'ACCEPT [0,0]'
+        },
+        :rules => []
+    },
+    :nat => {
+        :chains => {
+            'PREROUTING'  => 'ACCEPT [0,0]',
+            'POSTROUTING' => 'ACCEPT [0,0]',
+            'OUTPUT'      => 'ACCEPT [0,0]'
+        },
+        :rules => [],
+    }
+}
+
 templates = Dir["#{TEMPLATE_PATH}/*"].sort.delete_if do |template|
-  %w[prefix suffix].include?(File.basename(template))
+  %w[prefix suffix postfix].include?(File.basename(template))
 end
 
-data << prefix
-templates.each { |template| data << read_iptables(template) }
-data << suffix
-data << snat
+templates.unshift 'prefix' if File.exists? "#{TEMPLATE_PATH}/prefix"
+templates.push 'suffix' if File.exists? "#{TEMPLATE_PATH}/suffix"
+templates.push 'postfix' if File.exists? "#{TEMPLATE_PATH}/postfix"
 
-data = data.join("\n")
+templates.each { |template| read_iptables(template) }
+
+iptables_rules = ""
+@data.each do |table, table_data|
+  if table_data[:rules].any?
+    iptables_rules << "*#{table.to_s}\n"
+    table_data[:chains].each do |chain, rule|
+      iptables_rules << ":#{chain} #{rule}\n"
+    end
+    iptables_rules << table_data[:rules].join("\n")
+    iptables_rules << "\nCOMMIT\n"
+  end
+end
 
 if File.exists?("/etc/debian_version")
-  install_debian(data)
+  install_debian(iptables_rules)
 elsif File.exists?("/etc/redhat-release")
-  install_redhat(data)
+  install_redhat(iptables_rules)
 else
   raise "#{$0}: cannot figure out whether this is Red Hat or Debian\n";
 end
