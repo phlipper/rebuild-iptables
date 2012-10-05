@@ -23,7 +23,7 @@ The following platforms are supported by this cookbook, meaning that the recipes
 
 ## Usage
 
-Write `iptables` rule fragments and place them in `/etc/iptables.d`. Running this script will assemble them in order and reset the firewall rules. 
+Write `iptables` rule fragments and place them in `/etc/iptables.d`. Running this script will assemble them in order and reset the firewall rules.
 
 ## Example
 
@@ -46,7 +46,7 @@ For example, we have three rule-file:
 
 `/etc/iptables.d/all_icmp`
 
-    # ICMP 
+    # ICMP
     -A FWR -p icmp -j ACCEP
 
 `/etc/iptables.d/all_estabilished`
@@ -63,7 +63,7 @@ They are produce `/etc/iptables/general`
     :FWR -
     # Any established connection is money
     -A FWR -m state --state RELATED,ESTABLISHED -j ACCEPT
-    # ICMP 
+    # ICMP
     -A FWR -p icmp -j ACCEPT
     # Vagrant boxes forwarding rules for public static ip
 
@@ -90,6 +90,12 @@ They are produce `/etc/iptables/general`
 3. Commit your changes (`git commit -am 'Added some feature'`)
 4. Push to the branch (`git push origin my-new-feature`)
 5. Create new Pull Request
+
+
+## Contributors
+
+* **[@numbata](https://github.com/numbata)**
+    * add chain and tables rule definitions
 
 
 ## License
