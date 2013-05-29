@@ -32,7 +32,7 @@ def read_iptables(file, table = :filter)
       read_iptables($1, table)
     elsif line =~ /^\s*\*([a-z]+)\s*$/
       table = $1.to_sym
-    elsif line =~ /^\s*:([A-Z]+)(?:\s+([A-Z]+(?:\s*\[.*?\])))?$/
+    elsif line =~ /^\s*:([-a-zA-Z0-9_]+)(?:\s+([A-Z]+(?:\s*\[.*?\])))?$/
       @data[table][:chains][$1] = $2 || '-'
     elsif line !~ /^\s*COMMIT\s*$/
       #detect new chains
