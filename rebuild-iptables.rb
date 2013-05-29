@@ -33,7 +33,7 @@ def read_iptables(file, table = :filter)
     elsif line =~ /^\s*\*([a-z]+)\s*$/
       table = $1.to_sym
     elsif line =~ /^\s*:([A-Z]+)(?:\s+([A-Z]+(?:\s*\[.*?\])))?$/
-      @data[table][chains][$1] = $2 || '-'
+      @data[table][:chains][$1] = $2 || '-'
     elsif line !~ /^\s*COMMIT\s*$/
       #detect new chains
       if chain = line.match(/\-[ADRILFZN]\s+([-a-zA-Z0-9_]+)\s/)
