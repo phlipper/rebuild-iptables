@@ -96,6 +96,8 @@ They are produce `/etc/iptables/general`
 
 * **[@numbata](https://github.com/numbata)**
     * add chain and tables rule definitions
+* **[@hamann](https://github.com/hamann)**
+    * fix chain definitions
 
 
 ## License
