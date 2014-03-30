@@ -100,6 +100,8 @@ They are produce `/etc/iptables/general`
     * fix chain definitions
 * **[@juliandunn](https://github.com/juliandunn)**
     * add support for Amazon Linux
+* **[@jordant](https://github.com/jordant)**
+    * add raw/security table type definitions
 
 
 ## License
