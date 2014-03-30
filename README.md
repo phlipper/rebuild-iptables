@@ -98,6 +98,8 @@ They are produce `/etc/iptables/general`
     * add chain and tables rule definitions
 * **[@hamann](https://github.com/hamann)**
     * fix chain definitions
+* **[@juliandunn](https://github.com/juliandunn)**
+    * add support for Amazon Linux
 
 
 ## License
