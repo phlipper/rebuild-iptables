@@ -102,6 +102,8 @@ They are produce `/etc/iptables/general`
     * add support for Amazon Linux
 * **[@jordant](https://github.com/jordant)**
     * add raw/security table type definitions
+* **[@YellowApple](https://github.com/YellowApple)**
+    * update interpreter path specification
 
 
 ## License
