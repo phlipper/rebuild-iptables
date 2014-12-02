@@ -1,4 +1,4 @@
-#!/usr/bin/ruby -w
+#!/usr/bin/env ruby -w
 
 #
 # rebuild-iptables.rb -- Construct an iptables rules file from fragments.
